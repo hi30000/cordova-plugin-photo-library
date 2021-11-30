@@ -1,4 +1,5 @@
 import Cordova
+import Cordova
 import Photos
 import Foundation
 import AssetsLibrary // TODO: needed for deprecated functionality
@@ -524,67 +525,162 @@ final class PhotoLibraryService {
     // as described here: http://stackoverflow.com/questions/11972185/ios-save-photo-in-an-app-specific-album
     // but first find a way to save animated gif with it.
     // TODO: should return library item
+    
     func saveImage(_ url: String, album: String, completion: @escaping (_ libraryItem: NSDictionary?, _ error: String?)->Void) {
 
-        let sourceData: Data
-        do {
-            sourceData = try getDataFromURL(url)
-        } catch {
-            completion(nil, "\(error)")
-            return
-        }
-
-        let assetsLibrary = ALAssetsLibrary()
-
-        func saveImage(_ photoAlbum: PHAssetCollection) {
-            assetsLibrary.writeImageData(toSavedPhotosAlbum: sourceData, metadata: nil) { (assetUrl: URL?, error: Error?) in
-
-                if error != nil {
-                    completion(nil, "Could not write image to album: \(error)")
-                    return
-                }
-
-                guard let assetUrl = assetUrl else {
-                    completion(nil, "Writing image to album resulted empty asset")
-                    return
-                }
-
-                self.putMediaToAlbum(assetsLibrary, url: assetUrl, album: album, completion: { (error) in
-                    if error != nil {
-                        completion(nil, error)
-                    } else {
-                        let fetchResult = PHAsset.fetchAssets(withALAssetURLs: [assetUrl], options: nil)
-                        var libraryItem: NSDictionary? = nil
-                        if fetchResult.count == 1 {
-                            let asset = fetchResult.firstObject
-                            if let asset = asset {
-                                libraryItem = self.assetToLibraryItem(asset: asset, useOriginalFileNames: false, includeAlbumData: true)
-                            }
-                        }
-                        completion(libraryItem, nil)
-                    }
-                })
-
-            }
-        }
-
-        if let photoAlbum = PhotoLibraryService.getPhotoAlbum(album) {
-            saveImage(photoAlbum)
-            return
-        }
-
-        PhotoLibraryService.createPhotoAlbum(album) { (photoAlbum: PHAssetCollection?, error: String?) in
-
-            guard let photoAlbum = photoAlbum else {
-                completion(nil, error)
+            let sourceData: Data
+            do {
+                sourceData = try getDataFromURL(url)
+            } catch {
+                completion(nil, "\(String(describing: error))")
                 return
             }
 
-            saveImage(photoAlbum)
+            func fetchAssets(_ photoId: String) {
+                let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [photoId], options: nil)
+                var libraryItem: NSDictionary? = nil
+                if fetchResult.count == 1 {
+                    let asset = fetchResult.firstObject
+                    if let asset = asset {
+                        libraryItem = self.assetToLibraryItem(asset: asset, useOriginalFileNames: false, includeAlbumData: true)
+                    }
+                }
+                completion(libraryItem, nil)
+            }
 
+            func saveImage(_ photoAlbum: PHAssetCollection) {
+                
+                if #available(iOS 9.0, *) {
+                    var localId: String = String()
+                    
+                    PHPhotoLibrary.shared().performChanges({
+                        let image = UIImage(data : sourceData)
+                        let assetRequest = PHAssetChangeRequest.creationRequestForAsset(from: image!)
+                        let albumChangeRequest = PHAssetCollectionChangeRequest(for: photoAlbum)
+                        let placeHolder = assetRequest.placeholderForCreatedAsset
+                        albumChangeRequest?.addAssets([placeHolder!] as NSArray)
+                        localId = placeHolder!.localIdentifier;
+                    }) { (isSuccess, error) in
+                        if isSuccess {
+                            fetchAssets(localId)
+                        } else {
+                            completion(nil,"Could not write video to album: \(String(describing: error))")
+                        }
+                    }
+                } else {
+                    let assetsLibrary = ALAssetsLibrary()
+                    
+                    assetsLibrary.writeImageData(toSavedPhotosAlbum: sourceData, metadata: nil) { (assetUrl: URL?, error: Error?) in
+                        
+                        if error != nil {
+                            completion(nil, "Could not write image to album: \(String(describing: error))")
+                            return
+                        }
+                        
+                        guard let assetUrl = assetUrl else {
+                            completion(nil, "Writing image to album resulted empty asset")
+                            return
+                        }
+                        
+                        self.putMediaToAlbum(assetsLibrary, url: assetUrl, album: album, completion: { (error) in
+                            if error != nil {
+                                completion(nil, error)
+                            } else {
+                                let fetchResult = PHAsset.fetchAssets(withALAssetURLs: [assetUrl], options: nil)
+                                var libraryItem: NSDictionary? = nil
+                                if fetchResult.count == 1 {
+                                    let asset = fetchResult.firstObject
+                                    if let asset = asset {
+                                        libraryItem = self.assetToLibraryItem(asset: asset, useOriginalFileNames: false, includeAlbumData: true)
+                                    }
+                                }
+                                completion(libraryItem, nil)
+                            }
+                        })
+                    }
+                }
+            }
+            
+            if let photoAlbum = PhotoLibraryService.getPhotoAlbum(album) {
+                saveImage(photoAlbum)
+                return
+            }
+            
+            PhotoLibraryService.createPhotoAlbum(album) { (photoAlbum: PHAssetCollection?, error: String?) in
+                
+                guard let photoAlbum = photoAlbum else {
+                    completion(nil, error)
+                    return
+                }
+                
+                saveImage(photoAlbum)
+                
+            }
         }
 
-    }
+    
+    //seman : 기존버전 saveImage
+//    func saveImage(_ url: String, album: String, completion: @escaping (_ libraryItem: NSDictionary?, _ error: String?)->Void) {
+//
+//        let sourceData: Data
+//        do {
+//            sourceData = try getDataFromURL(url)
+//        } catch {
+//            completion(nil, "\(error)")
+//            return
+//        }
+//
+//        let assetsLibrary = ALAssetsLibrary()
+//
+//        func saveImage(_ photoAlbum: PHAssetCollection) {
+//            assetsLibrary.writeImageData(toSavedPhotosAlbum: sourceData, metadata: nil) { (assetUrl: URL?, error: Error?) in
+//
+//                if error != nil {
+//                    completion(nil, "Could not write image to album: \(error)")
+//                    return
+//                }
+//
+//                guard let assetUrl = assetUrl else {
+//                    completion(nil, "Writing image to album resulted empty asset")
+//                    return
+//                }
+//
+//                self.putMediaToAlbum(assetsLibrary, url: assetUrl, album: album, completion: { (error) in
+//                    if error != nil {
+//                        completion(nil, error)
+//                    } else {
+//                        let fetchResult = PHAsset.fetchAssets(withALAssetURLs: [assetUrl], options: nil)
+//                        var libraryItem: NSDictionary? = nil
+//                        if fetchResult.count == 1 {
+//                            let asset = fetchResult.firstObject
+//                            if let asset = asset {
+//                                libraryItem = self.assetToLibraryItem(asset: asset, useOriginalFileNames: false, includeAlbumData: true)
+//                            }
+//                        }
+//                        completion(libraryItem, nil)
+//                    }
+//                })
+//
+//            }
+//        }
+//
+//        if let photoAlbum = PhotoLibraryService.getPhotoAlbum(album) {
+//            saveImage(photoAlbum)
+//            return
+//        }
+//
+//        PhotoLibraryService.createPhotoAlbum(album) { (photoAlbum: PHAssetCollection?, error: String?) in
+//
+//            guard let photoAlbum = photoAlbum else {
+//                completion(nil, error)
+//                return
+//            }
+//
+//            saveImage(photoAlbum)
+//
+//        }
+//
+//    }
 
     func saveVideo(_ url: String, album: String, completion: @escaping (_ libraryItem: NSDictionary?, _ error: String?)->Void) {
 
