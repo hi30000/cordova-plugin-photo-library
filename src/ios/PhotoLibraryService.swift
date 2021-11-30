@@ -1,3 +1,4 @@
+import Cordova
 import Photos
 import Foundation
 import AssetsLibrary // TODO: needed for deprecated functionality
@@ -41,12 +42,12 @@ final class PhotoLibraryService {
     let mimeTypes = [
         "flv":  "video/x-flv",
         "mp4":  "video/mp4",
-        "m3u8":	"application/x-mpegURL",
+        "m3u8":    "application/x-mpegURL",
         "ts":   "video/MP2T",
-        "3gp":	"video/3gpp",
-        "mov":	"video/quicktime",
-        "avi":	"video/x-msvideo",
-        "wmv":	"video/x-ms-wmv",
+        "3gp":    "video/3gpp",
+        "mov":    "video/quicktime",
+        "avi":    "video/x-msvideo",
+        "wmv":    "video/x-ms-wmv",
         "gif":  "image/gif",
         "jpg":  "image/jpeg",
         "jpeg": "image/jpeg",
@@ -134,7 +135,7 @@ final class PhotoLibraryService {
 
 
 
-	// TODO: do not restart caching on multiple calls
+    // TODO: do not restart caching on multiple calls
 //        if fetchResult.count > 0 {
 //
 //            var assets = [PHAsset]()
@@ -470,30 +471,12 @@ final class PhotoLibraryService {
 
     }
 
+     
     func requestAuthorization(_ success: @escaping () -> Void, failure: @escaping (_ err: String) -> Void ) {
 
-        let status = PHPhotoLibrary.authorizationStatus()
-
-        if status == .authorized {
-            success()
-            return
-        }
-
-        if status == .notDetermined {
-            // Ask for permission
-            PHPhotoLibrary.requestAuthorization() { (status) -> Void in
-                switch status {
-                case .authorized:
-                    success()
-                default:
-                    failure("requestAuthorization denied by user")
-                }
-            }
-            return
-        }
-
-        // Permission was manually denied by user, open settings screen
-        let settingsUrl = URL(string: UIApplication.openSettingsURLString)
+        //seman : 무조건 설정간다.
+         let settingsUrl = URL(string: UIApplication.openSettingsURLString)
+            
         if let url = settingsUrl {
             UIApplication.shared.openURL(url)
             // TODO: run callback only when return ?
@@ -501,6 +484,39 @@ final class PhotoLibraryService {
         } else {
             failure("could not open settings url")
         }
+    
+        
+       
+        
+//        let status = PHPhotoLibrary.authorizationStatus()
+//
+//        if status == .authorized {
+//            success()
+//            return
+//        }
+//
+//        if status == .notDetermined {
+//            // Ask for permission
+//            PHPhotoLibrary.requestAuthorization() { (status) -> Void in
+//                switch status {
+//                case .authorized:
+//                    success()
+//                default:
+//                    failure("requestAuthorization denied by user")
+//                }
+//            }
+//            return
+//        }
+//
+//        // Permission was manually denied by user, open settings screen
+//        let settingsUrl = URL(string: UIApplication.openSettingsURLString)
+//        if let url = settingsUrl {
+//            UIApplication.shared.openURL(url)
+//            // TODO: run callback only when return ?
+//            // Do not call success, as the app will be restarted when user changes permission
+//        } else {
+//            failure("could not open settings url")
+//        }
 
     }
 
